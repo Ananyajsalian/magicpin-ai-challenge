@@ -16,8 +16,15 @@ def healthz():
 
 @app.get("/v1/metadata")
 def metadata():
-    # judge checks team_name, model — "name" alone fails
-    return jsonify({"team_name": "vera-v2", "model": "hybrid", "name": "vera-bot"})
+    return {
+        "name": "vera-bot",
+        "team": "Ananya J Salian",
+        "team_name": "Ananya J Salian",  # for judge
+        "contact_email": "ananyajsalian@gmail.com",
+        "model_name": "vera-bot",
+        "version": "1.0.0",
+        "endpoints": ["/v1/healthz", "/v1/metadata", "/v1/context", "/v1/tick", "/v1/reply"]
+    }
 
 @app.post("/v1/context")
 def context():
