@@ -106,7 +106,7 @@ def compose(category: dict, merchant: dict, trigger: dict, customer: Optional[di
         ti = payload.get('top_item',{})
         body = f"{first_name}, {ti.get('source','JIDA Oct 2026 p.14')} just landed. For your patients — {ti.get('title','3-mo fluoride recall cuts caries 38% better than 6-mo')} (n={ti.get('trial_n',2100)}). Worth a 2-min read? I've pulled abstract + drafted patient WhatsApp — want me to send it?"
     elif kind in ["perf_dip", "ctr_below_peer", "stale_posts"]:
-        body = f"Quick nudge, {first_name}: {verifiable} in {locality}. Last post {perf.get('days_since_post','22d ago')}. I've drafted a {offer} post to lift it — say YES to publish? Reply YES/STOP."
+        last_post = merchant.get('signals',['22d ago'])[0] if merchant.get('signals') else '22d ago'
     elif kind in ["festival_upcoming", "weather_heatwave", "local_news_event"]:
         body = f"{first_name}, {kind.replace('_',' ')} this week — 3 {cat_slug} in {locality} already posted {offer}. Want me to push yours? I've drafted it — 5-min setup, just YES."
     elif kind == "dormant_with_vera":
