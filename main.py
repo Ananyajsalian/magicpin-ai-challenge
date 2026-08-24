@@ -12,7 +12,11 @@ AUTO_COUNTS = {}
 
 @app.api_route("/v1/healthz", methods=["GET", "HEAD"])
 def healthz():
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ok", "alive": True})
+
+@app.get("/")
+def root():
+    return jsonify({"status": "ok", "alive": True})
     
 
 @app.api_route("/v1/metadata", methods=["GET","HEAD"])
