@@ -101,4 +101,6 @@ def handle_reply():
     return jsonify({"action": "send", "body": "Samjha — bataiye, kya aapko iska draft chahiye? Reply YES/STOP."})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    import os
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
