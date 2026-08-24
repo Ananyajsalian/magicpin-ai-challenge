@@ -10,11 +10,12 @@ STORE = {"category": {}, "merchant": {}, "trigger": {}, "customer": {}}
 # For auto-reply counter per conversation
 AUTO_COUNTS = {}
 
-@app.get("/v1/healthz")
+@app.api_route("/v1/healthz", methods=["GET", "HEAD"])
 def healthz():
     return jsonify({"status": "ok"})
+    
 
-@app.get("/v1/metadata")
+@app.api_route("/v1/metadata", methods=["GET","HEAD"])
 def metadata():
     return {
         "name": "vera-bot",
