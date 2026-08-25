@@ -86,7 +86,7 @@ def build_message(merchant, trigger_data):
 @app.post("/v1/tick")
 async def tick(data: dict):
     mid = data.get("merchant_id","m_001_drmeera")
-     if mid in TICK_CACHE: 
+    if mid in TICK_CACHE: 
         return TICK_CACHE[mid] 
     merchant = merchant_store.get(mid, {})
     # if not in store, use data itself as merchant
@@ -94,7 +94,7 @@ async def tick(data: dict):
         merchant = data.get("merchant", {})
     result = build_message(merchant, data)
     # Judge allows 20 actions/tick - we send 1 high-compulsion
-     final = {"actions":[{"type":"send","to":"merchant","message":result["message"],"cta":result["cta"]}]}
+    final = {"actions":[{"type":"send","to":"merchant","message":result["message"],"cta":result["cta"]}]}
     TICK_CACHE[mid] = final 
     return final
     
