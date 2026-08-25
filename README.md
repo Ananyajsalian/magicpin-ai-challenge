@@ -52,7 +52,7 @@ No LLM called directly for merchant facing output, LLM used only for intent clas
 
 ## How to Run
 1. Install dependencies:
-2. 
+ 
   pip install -r requirements.txt
 
   Set env: export PORT=8000
