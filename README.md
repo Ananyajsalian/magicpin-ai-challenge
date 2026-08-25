@@ -14,8 +14,11 @@ An AI-powered, state-driven conversational bot for automated merchant onboarding
 ## 🚀 LIVE LINKS - Production Ready
 
 **Live Bot:** https://magicpin-ai-challenge-production-e6fc.up.railway.app
+
 **API Docs (Swagger):** https://magicpin-ai-challenge-production-e6fc.up.railway.app/docs
+
 **Metadata:** https://magicpin-ai-challenge-production-e6fc.up.railway.app/v1/metadata
+
 **Health:** https://magicpin-ai-challenge-production-e6fc.up.railway.app/v1/healthz
 
 **Uptime:** 100% (Monitored via UptimeRobot - 5min interval)
