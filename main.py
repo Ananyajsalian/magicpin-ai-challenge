@@ -94,22 +94,26 @@ def compose(category: Dict, merchant: Dict, trigger: Dict, customer: Optional[Di
         "merchant_id": merchant.get("id")
     }
 
+
 @app.get("/")
-def root(): return {"status": "ok", "service": "vera", "uptime": int(time.time()-START_TIME)}
-
-@app.get("/v1/healthz")
+@app.get("/healthz")      
+@app.get("/v1/healthz")   
 def healthz():
-    return {"status": "ok", "uptime_seconds": int(time.time()-START_TIME), "contexts": {k: len(v) if isinstance(v, dict) else len(v) for k,v in STORE.items() if k!="history"}}
+    return {"status": "ok", "service": "vera", "uptime_seconds": 0}
 
+
+
+@app.get("/metadata")
 @app.get("/v1/metadata")
 def metadata():
     return {
-        "team_name": "Ananya ",
-        "team_members": "Ananya",
-        "contact_email": "ananyajsalian@gmail.com",
-        "approach": "deterministic signal-routing composer, no hallucination, versioned context store, auto-reply/stop/yes detection, 1 CTA",
+        "team_name": "Ananya",
+        "team_members": ["Ananya"],
+        "contact_email": ["ananyajsalian@gmail.com"],
+        "approach": "deterministic signal-routing composer, no hallucination, versioned content store",
         "model": "rule-based + grounded"
     }
+
 
 @app.post("/v1/context")
 def set_context(payload: Dict[str, Any]):
