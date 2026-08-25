@@ -6,6 +6,7 @@ app = FastAPI()
 merchant_store = {}
 customer_store = {}
 trigger_store = {}
+TICK_CACHE = {}
 
 @app.get("/healthz")
 @app.get("/v1/healthz")
@@ -24,6 +25,7 @@ async def teardown():
     merchant_store.clear()
     customer_store.clear()
     trigger_store.clear()
+    TICK_CACHE.clear()
     return {"cleared": True, "at": datetime.utcnow().isoformat()+"Z"}
 
 @app.post("/v1/context")
@@ -84,14 +86,18 @@ def build_message(merchant, trigger_data):
 @app.post("/v1/tick")
 async def tick(data: dict):
     mid = data.get("merchant_id","m_001_drmeera")
+     if mid in TICK_CACHE: 
+        return TICK_CACHE[mid] 
     merchant = merchant_store.get(mid, {})
     # if not in store, use data itself as merchant
     if not merchant:
         merchant = data.get("merchant", {})
     result = build_message(merchant, data)
     # Judge allows 20 actions/tick - we send 1 high-compulsion
-    return {"actions":[{"type":"send","to":"merchant","message":result["message"],"cta":result["cta"]}], "compose": result}
-
+     final = {"actions":[{"type":"send","to":"merchant","message":result["message"],"cta":result["cta"]}]}
+    TICK_CACHE[mid] = final 
+    return final
+    
 @app.post("/v1/reply")
 async def reply(data: dict):
     msg = str(data.get("message","")).lower()
