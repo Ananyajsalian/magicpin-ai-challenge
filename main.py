@@ -14,7 +14,8 @@ class TickRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"docs": "/docs"}
+    return {"status": "live", "docs": "/docs", "health": "/v1/healthz"}
+    
 
 @app.get("/v1/healthz", tags=["healthz"])
 def healthz():
@@ -22,8 +23,16 @@ def healthz():
 
 @app.get("/v1/metadata", tags=["meta"])
 def metadata():
-    return {"model": "rule-based-v1", "version": "1.0"}
-
+    return {
+        "name": "vera-bot",
+        "team": "Ananya J Salian",
+        "team_name": "Ananya J Salian",
+        "contact_email": "ananyajsalian@gmail.com",
+        "model_name": "vera-bot",
+        "version": "1.0.0",
+        "endpoints": ["/v1/healthz", "/v1/metadata", "/v1/context", "/v1/tick", "/v1/reply"]
+    }
+    
 @app.get("/v1/context", tags=["context"])
 def get_context():
     return {"context": {}}
