@@ -35,6 +35,7 @@ async def context(data: dict):
     payload = data.get("payload", {})
     if scope == "merchant":
         merchant_store[cid] = payload
+        TICK_CACHE.pop(cid, None)
     elif scope == "customer":
         customer_store[cid] = payload
     else:
