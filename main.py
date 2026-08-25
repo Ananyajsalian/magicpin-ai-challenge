@@ -93,7 +93,8 @@ def build_message(merchant, trigger_data):
     return {
         "message": msg,
         "cta": "YES/NO",
-        "rationale": f"Picked best signal: search_volume={search_volume} + category={category} + anchor={anchor_text} + offer={title} - {anchor_map['dentist']} | {anchor_map['salon']} | {anchor_map['restaurant']} | {anchor_map['gym']} | {anchor_map['pharmacy']}"
+        "rationale": f"search_volume={search_volume} + category={category} + {anchor_text} | {anchor_map['dentist']} | {anchor_map['salon']} | {anchor_map['restaurant']} | {anchor_map['gym']} | {anchor_map['pharmacy']}",
+        "options": {"msg": msg, "cta": "merchant"}
     }
 
 @app.post("/v1/tick")
