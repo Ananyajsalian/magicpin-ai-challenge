@@ -77,7 +77,7 @@ def build_message(merchant, trigger_data):
     else: # pharmacy
         msg = f"{search_volume} refill pending in {locality}. Send {title} reminder at ₹{price}? Reply YES"
 # --- 10 anchors in judge order ---
-       anchor_map = {
+    anchor_map = {
         "dentist": "research digest + recall reminder",
         "salon": "bridal followup + curious ask",
         "restaurant": "IPL match day + corporate thali planning",
@@ -86,13 +86,13 @@ def build_message(merchant, trigger_data):
     }
     cat_key = "restaurant"
     for k in anchor_map:
-        if k in category.lower() or k in req.search_term.lower():
+        if k in category.lower() or k in str(search_term).lower():
             cat_key = k
             break
     anchor_text = anchor_map[cat_key]
 
     if cat_key == "dentist":
-        msg = f"{req.search_volume} people searched dentist - {anchor_text}. Send recall reminder?"
+       msg = f"{search_volume} people searched dentist - {anchor_text}. Send recall reminder?"
     elif cat_key == "salon":
         msg = f"{req.search_volume} bridal searches - {anchor_text}. Followup?"
     elif cat_key == "restaurant":
