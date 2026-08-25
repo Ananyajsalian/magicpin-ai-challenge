@@ -104,9 +104,9 @@ def healthz():
 @app.get("/v1/metadata")
 def metadata():
     return {
-        "team_name": "Ananya - Vera",
-        "team_members": ["Ananya"],
-        "contact_email": "ananya@example.com",
+        "team_name": "Ananya ",
+        "team_members": "Ananya",
+        "contact_email": "ananyajsalian@gmail.com",
         "approach": "deterministic signal-routing composer, no hallucination, versioned context store, auto-reply/stop/yes detection, 1 CTA",
         "model": "rule-based + grounded"
     }
