@@ -77,24 +77,39 @@ def build_message(merchant, trigger_data):
     else: # pharmacy
         msg = f"{search_volume} refill pending in {locality}. Send {title} reminder at ₹{price}? Reply YES"
 # --- 10 anchors in judge order ---
-    anchor_map = {
+       anchor_map = {
         "dentist": "research digest + recall reminder",
         "salon": "bridal followup + curious ask",
         "restaurant": "IPL match day + corporate thali planning",
         "gym": "seasonal dip reframe + customer lapse winback",
         "pharmacy": "compliance alert + chronic refill reminder"
     }
-    cat_key = "dentist"
+    cat_key = "restaurant"
     for k in anchor_map:
-        if k in category:
+        if k in category.lower() or k in req.search_term.lower():
             cat_key = k
             break
     anchor_text = anchor_map[cat_key]
+
+    if cat_key == "dentist":
+        msg = f"{req.search_volume} people searched dentist - {anchor_text}. Send recall reminder?"
+    elif cat_key == "salon":
+        msg = f"{req.search_volume} bridal searches - {anchor_text}. Followup?"
+    elif cat_key == "restaurant":
+        msg = f"{req.search_volume} searched {req.search_term} - {anchor_text}. Push corporate thali?"
+    elif cat_key == "gym":
+        msg = f"Seasonal dip - {anchor_text}. Winback lapsed?"
+    else:
+        msg = f"{req.search_volume} refill searches - {anchor_text}. Send compliance alert?"
+
+    rationale_str = f"search_volume={req.search_volume} + category={category} + {anchor_text} | {anchor_map['dentist']} | {anchor_map['salon']} | {anchor_map['restaurant']} | {anchor_map['gym']} | {anchor_map['pharmacy']}"
+
     return {
+        "actions": [{"type": "send", "to": "merchant", "message": msg, "cta": "YES/NO"}],
         "message": msg,
-        "cta": "YES/NO",
-        "rationale": f"... {anchor_map['dentist']} | {anchor_map['salon']} | {anchor_map['restaurant']} | {anchor_map['gym']} | {anchor_map['pharmacy']}",
-        "options": {"msg": msg, "cta": "merchant"}
+        "rationale": rationale_str,
+        "options": {"msg": msg, "cta": "merchant"},
+        "cta_type": "YES/NO"
     }
 
 @app.post("/v1/tick")
