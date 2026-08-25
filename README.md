@@ -53,21 +53,21 @@ No LLM called directly for merchant facing output, LLM used only for intent clas
 ## How to Run
 1. Install dependencies:
  
-  pip install -r requirements.txt
+    pip install -r requirements.txt
 
-  Set env: export PORT=8000
+    Set env: export PORT=8000
   
-  Run the bot:
+    Run the bot:
   
-  python main.py
+    python main.py
 
-  or production:
+    or production:
   
-  uvicorn main:app --host 0.0.0.0 --port $PORT
+    uvicorn main:app --host 0.0.0.0 --port $PORT
   
-  Run judge simulator:
+    Run judge simulator:
   
-  python judge_simulator.py --url localhost:8000
+    python judge_simulator.py --url localhost:8000
 
 
 ## Project Structure
