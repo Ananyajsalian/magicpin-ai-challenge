@@ -3,8 +3,10 @@
 Demo Video bot - 1m 32s Overview
 Vera: State-driven conversational bot for merchant onboarding with security hardening & judge tests passing
 
-**Team: Ananya**
-Email: [your email for MagicPin AI Challenge 2026]
+**Team: Ananya J Salian**
+
+**Email:** ananyajsalian@gmail.com
+
 
 ## LIVE LINKS - Production Ready
 
@@ -77,6 +79,7 @@ No LLM called directly for merchant facing output, LLM used only for intent clas
 
 ## Submission
 GitHub: https://github.com/Ananyajsalian/magicpin-ai-challenge
+
 Live: https://magicpin-ai-challenge-production-e6fc.up.railway.app
 
 Built for MagicPin AI Challenge 2026 | Vera Bot Live - v1.0
