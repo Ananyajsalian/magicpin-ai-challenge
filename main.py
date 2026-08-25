@@ -8,6 +8,10 @@ customer_store = {}
 trigger_store = {}
 TICK_CACHE = {}
 
+@app.get("/")
+def root():
+    return {"status":"ok"}
+
 @app.get("/healthz")
 @app.get("/v1/healthz")
 async def healthz():
