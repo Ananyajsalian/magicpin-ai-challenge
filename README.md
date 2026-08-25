@@ -87,7 +87,9 @@ export PORT=8080
 
  ##
  🏆 Submission
- **GitHub:** github.com
-**Live:** magicpin-ai-challenge-wjba.onrender.com
+ **GitHub:** https://github.com/Ananyajsalian/magicpin-ai-challenge
+ 
+**Live:** https://magicpin-ai-challenge-production-e6fc.up.railway.app 
+
 Built for **MagicPin AI Challenge 2026** | Vera Bot Live - v1.0
  
