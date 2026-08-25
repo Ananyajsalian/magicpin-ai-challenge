@@ -12,6 +12,12 @@ class TickRequest(BaseModel):
     context: Dict[str, Any] = {}
     customer: Dict[str, Any] = {}
 
+class ReplyRequest(BaseModel):
+    message: str
+    conversation_id: str = "default"
+    context: Dict[str, Any] = {}
+    trigger_id: Optional[str] = "test_id"
+
 @app.get("/")
 def root():
     return {"status": "live", "docs": "/docs", "health": "/v1/healthz"}
