@@ -3,7 +3,4 @@ __pycache__/
 *.pyc
 .venv/
 venv/
-judge_simulator.py
-dataset/
-examples/
 .env.local
