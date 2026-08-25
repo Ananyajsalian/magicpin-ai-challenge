@@ -59,12 +59,13 @@ def tick():
             result = compose(category, merchant, trig, customer)
         except Exception as e:
             result = {
-
-                "body": f"Hi {merchant.get('identity',{}).get('name','there')}, CTR {merchant.get('performance',{}).get('ctr',0.021)*100:.1f}% vs peer 3.0%..."
-                "cta": "YES",
-                "send_as": "whatsapp",
-                "suppression_key": trig.get("suppression_key", tid),
-                "rationale": f"fallback: {e}"
+                    "body": "Hi there! Check our latest offer.",
+                    "cta": "YES",
+                    "send_as": "whatsapp",
+                    "suppression_key": trig.get("suppression_key", tid),
+                    "rationale": f"fallback: {e}"
+                
+               
             }
         result["trigger_id"] = tid
         result["merchant_id"] = mid
