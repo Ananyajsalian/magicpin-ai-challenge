@@ -16,6 +16,8 @@ Metadata: https://magicpin-ai-challenge-production-e6fc.up.railway.app/v1/metada
 
 Health: https://magicpin-ai-challenge-production-e6fc.up.railway.app/v1/healthz
 
+Base URL: https://magicpin-ai-challenge-production-e6fc.up.railway.app
+
 Uptime: 100% (Monitored via UptimeRobot - 5min interval)
 
 ## Endpoints
@@ -48,13 +50,21 @@ No LLM called directly for merchant facing output, LLM used only for intent clas
 
 ## How to Run
 1. Install dependencies:
+2. 
   pip install -r requirements.txt
+
   Set env: export PORT=8000
+  
   Run the bot:
+  
   python main.py
+
   or production:
+  
   uvicorn main:app --host 0.0.0.0 --port $PORT
+  
   Run judge simulator:
+  
   python judge_simulator.py --url localhost:8000
 
 
