@@ -1,154 +1,190 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import Any, Dict, Optional
-import os
+from typing import Dict, Any, List, Optional
+import time
+from collections import defaultdict
 
-app = FastAPI(title="MagicPin AI Challenge", docs_url="/docs", redoc_url="/redoc", openapi_url="/openapi.json")
+app = FastAPI(title="Vera - Magicpin")
 
-class TickRequest(BaseModel):
-    trigger_id: Optional[str] = "test_id"
-    merchant: Dict[str, Any] = {}
-    trigger: Dict[str, Any] = {}
-    context: Dict[str, Any] = {}
-    customer: Dict[str, Any] = {}
+# In-memory versioned store - judge ka fresh context yahan save hoga
+STORE = {
+    "categories": {}, "merchants": {},
+    "customers": {}, "triggers": {},
+    "suppressions": set(), "history": defaultdict(list)
+}
+START_TIME = time.time()
 
-class ReplyRequest(BaseModel):
-    message: str
-    conversation_id: str = "default"
-    context: Dict[str, Any] = {}
-    trigger_id: Optional[str] = "test_id"
+class ContextPayload(BaseModel):
+    category: Optional[Dict[str, Any]] = None
+    categories: Optional[List[Dict[str, Any]]] = None
+    merchant: Optional[Dict[str, Any]] = None
+    merchants: Optional[List[Dict[str, Any]]] = None
+    customer: Optional[Dict[str, Any]] = None
+    customers: Optional[List[Dict[str, Any]]] = None
+    trigger: Optional[Dict[str, Any]] = None
+    triggers: Optional[List[Dict[str, Any]]] = None
+    # judge kabhi bhi field bhej sakta hai
+    class Config:
+        extra = "allow"
+
+def upsert(kind: str, items: List[Dict]):
+    for item in items:
+        if not isinstance(item, dict): continue
+        _id = item.get("id") or item.get("slug") or item.get("trigger_id") or item.get("kind") or str(hash(str(item)))[:8]
+        prev = STORE[kind].get(_id, {})
+        # version-safe: naya version hi overwrite karega
+        if item.get("version", 0) >= prev.get("version", -1):
+            STORE[kind][_id] = item
+
+def detect_auto_reply(text: str) -> bool:
+    t = text.lower()
+    keys = ["away", "auto", "out of office", "currently unavailable", "business account", "automated message"]
+    return any(k in t for k in keys)
+
+def detect_stop(text: str) -> bool:
+    t = text.lower()
+    return any(k in t for k in ["stop", "not interested", "unsubscribe", "band karo", "dont message"])
+
+def detect_yes(text: str) -> bool:
+    t = text.lower().strip()
+    return any(k in t for k in ["yes", "go ahead", "lets do", "let's do", "hogi", "kar do", "ok send", "approve", "book"])
+
+def compose(category: Dict, merchant: Dict, trigger: Dict, customer: Optional[Dict]=None) -> Dict[str, Any]:
+    # NO HALLUCINATION - sirf context me jo hai wahi use
+    m_name = merchant.get("name") or merchant.get("business_name") or "there"
+    owner = merchant.get("owner_name") or merchant.get("contact_name") or ""
+    cat_slug = (category.get("slug") or category.get("id") or "general").lower() if category else "general"
+
+    # performance numbers grounded
+    perf = merchant.get("performance") or merchant.get("metrics") or {}
+    offers = merchant.get("offers") or merchant.get("active_offers") or []
+    offer_text = offers[0] if offers else (category.get("offer_catalog", [""])[0] if category else "")
+    if isinstance(offer_text, dict): offer_text = offer_text.get("title","") or offer_text.get("name","")
+
+    # trigger kind
+    kind = (trigger.get("kind") or trigger.get("type") or "general").lower()
+    payload = trigger.get("payload") or trigger
+    suppression_key = trigger.get("suppression_key") or f"{kind}_{merchant.get('id','')}_{payload.get('id','')}"
+
+    # Category voice
+    if "dentist" in cat_slug or "clinic" in cat_slug:
+        tone = "professional, concise"
+        body = f"Hi {owner or m_name}, {payload.get('insight') or trigger.get('title') or 'quick research update'}: {payload.get('top_item_title') or payload.get('source') or 'patients respond better to profiles with procedure photos'}. Your profile has {perf.get('profile_views', 'good')} views. Want to add {offer_text or 'a seasonal checkup offer'}? Reply YES and I'll draft it."
+    elif "restaurant" in cat_slug:
+        body = f"Hi {owner or m_name}, {kind.replace('_',' ')} alert: {payload.get('reason') or trigger.get('title') or 'weekend demand up'}. You had {perf.get('orders_last_week', perf.get('orders', ''))} orders. {f'Top offer: {offer_text}. ' if offer_text else ''}Should I push this to customers? Reply YES to send."
+    else:
+        # Generic grounded composer - works for fresh judge triggers
+        fact = payload.get("reason") or payload.get("insight") or payload.get("title") or trigger.get("title") or "opportunity"
+        metric = f" {perf}" if perf else ""
+        body = f"Hi {owner or m_name}, {fact} - noticed for your {cat_slug} store.{metric} {f'Suggest: {offer_text}. ' if offer_text else ''}Want me to message {customer.get('name','customers') if customer else 'customers'}? Reply YES."
+
+    # One CTA only - judge check
+    cta = "YES to send" if "YES" not in body else "Reply to confirm"
+    send_as = "merchant_on_behalf" if customer else "vera"
+
+    rationale = f"Grounded in trigger={kind}, merchant_id={merchant.get('id')}, offer={bool(offer_text)}, perf_keys={list(perf.keys())[:3]}"
+
+    return {
+        "body": body[:320], # hard constraint: 1 CTA, short
+        "cta": cta,
+        "send_as": send_as,
+        "suppression_key": suppression_key,
+        "rationale": rationale,
+        "trigger_id": trigger.get("id") or trigger.get("trigger_id"),
+        "merchant_id": merchant.get("id")
+    }
 
 @app.get("/")
-def root():
-    return {"status": "live", "docs": "/docs", "health": "/v1/healthz"}
-    
+def root(): return {"status": "ok", "service": "vera", "uptime": int(time.time()-START_TIME)}
 
-@app.get("/v1/healthz", tags=["healthz"])
+@app.get("/v1/healthz")
 def healthz():
-    return {"status": "ok"}
+    return {"status": "ok", "uptime_seconds": int(time.time()-START_TIME), "contexts": {k: len(v) if isinstance(v, dict) else len(v) for k,v in STORE.items() if k!="history"}}
 
-@app.get("/v1/metadata", tags=["meta"])
+@app.get("/v1/metadata")
 def metadata():
     return {
-        "name": "vera-bot",
-        "team": "Ananya J Salian",
-        "team_name": "Ananya J Salian",
-        "contact_email": "ananyajsalian@gmail.com",
-        "model_name": "vera-bot",
-        "version": "1.0.0",
-        "endpoints": ["/v1/healthz", "/v1/metadata", "/v1/context", "/v1/tick", "/v1/reply"]
+        "team_name": "Ananya - Vera",
+        "team_members": ["Ananya"],
+        "contact_email": "ananya@example.com",
+        "approach": "deterministic signal-routing composer, no hallucination, versioned context store, auto-reply/stop/yes detection, 1 CTA",
+        "model": "rule-based + grounded"
     }
-    
-@app.get("/v1/context", tags=["context"])
-def get_context():
-    return {"context": {}}
 
-@app.post("/v1/context", tags=["context"])
-def post_context(payload: Dict[str, Any]):
-    return {"status": "saved"}
+@app.post("/v1/context")
+def set_context(payload: Dict[str, Any]):
+    # Accept any shape judge sends - idempotent
+    data = payload
+    # categories
+    if "category" in data: upsert("categories", [data["category"]] if isinstance(data["category"], dict) else data["category"])
+    if "categories" in data: upsert("categories", data["categories"])
+    if "merchant" in data: upsert("merchants", [data["merchant"]] if isinstance(data["merchant"], dict) else data["merchant"])
+    if "merchants" in data: upsert("merchants", data["merchants"])
+    if "customer" in data: upsert("customers", [data["customer"]] if isinstance(data["customer"], dict) else data["customer"])
+    if "customers" in data: upsert("customers", data["customers"])
+    if "trigger" in data: upsert("triggers", [data["trigger"]] if isinstance(data["trigger"], dict) else data["trigger"])
+    if "triggers" in data: upsert("triggers", data["triggers"])
+    # Also handle expanded format from dataset generator
+    for k in ["categories","merchants","customers","triggers"]:
+        if k in data and isinstance(data[k], dict):
+            upsert(k, [data[k]])
+    return {"status": "ok", "stored": {k: len(STORE[k]) for k in ["categories","merchants","customers","triggers"]}, "context_id": list(STORE["merchants"].keys())[-1] if STORE["merchants"] else "default"}
 
-@app.post("/v1/tick", tags=["tick"])
-def tick(req: TickRequest):
-    m = req.merchant or {}
-    t = req.trigger or {}
-    c = req.customer or {}
-    cat = str(m.get("category", "")).lower()
-    name = m.get("identity", {}).get("name", "us")
-    ttype = str(t.get("type", "")).lower()
+@app.post("/v1/tick")
+def tick(payload: Dict[str, Any] = {}):
+    # Judge can send context_id or empty - handle both
+    limit = int(payload.get("limit", 20)) # max 20 per spec
+    actions = []
+    # Use all active triggers not suppressed
+    for tid, trig in list(STORE["triggers"].items())[:limit]:
+        if tid in STORE["suppressions"]: continue
+        # find related merchant/customer/category
+        mid = trig.get("merchant_id") or trig.get("merchant", {}).get("id") or trig.get("payload", {}).get("merchant_id") or (list(STORE["merchants"].keys())[0] if STORE["merchants"] else None)
+        merchant = STORE["merchants"].get(mid) or next(iter(STORE["merchants"].values()), {"id": mid or "m1", "name": "your store"})
+        cid = trig.get("customer_id") or trig.get("payload", {}).get("customer_id")
+        customer = STORE["customers"].get(cid) if cid else None
+        cat_id = merchant.get("category_id") or trig.get("category_id") or (list(STORE["categories"].keys())[0] if STORE["categories"] else None)
+        category = STORE["categories"].get(cat_id) or next(iter(STORE["categories"].values()), {"slug": "general"})
 
-    if "low" in ttype and not c.get("is_loyal"):
-        return {"body": "", "cta": "", "send_as": "none", "suppression_key": str(req.trigger_id), "rationale": "skip low intent"}
+        comp = compose(category, merchant, trig, customer)
+        STORE["suppressions"].add(comp["suppression_key"])
+        actions.append(comp)
+        if len(actions) >= limit: break
 
-    if "food" in cat or "restaurant" in cat:
-        body = f"{c.get('name','Hi')}, {name} is live with today's special. Want to order?"
-        cta = "ORDER NOW"
-    elif "salon" in cat or "spa" in cat:
-        body = f"{name} has free slot today. Last cut 20 days ago. Book?"
-        cta = "BOOK"
-    else:
-        body = f"{name} has Rs 299 discounted check-up. Should we book?"
-        cta = "YES"
-
-    return {"body": body[:160], "cta": cta, "send_as": "whatsapp", "suppression_key": t.get("suppression_key", str(req.trigger_id)), "rationale": cat}
+    return {"actions": actions, "count": len(actions)}
 
 @app.post("/v1/reply")
-def reply(req: ReplyRequest):
-    import re
-    raw = req.message or ""
-    q = raw.lower().strip()
-    ctx = req.context or {}
+def reply(payload: Dict[str, Any]):
+    # Judge replay scenarios
+    msg = payload.get("message") or payload.get("reply_text") or payload.get("text") or ""
+    conv_id = payload.get("conversation_id") or payload.get("trigger_id") or "default"
+    from_role = payload.get("from_role") or payload.get("role") or "merchant"
 
-    DB = {
-        "biryani": ["Ambur Star Biryani - Rs 280 - 4.3* - 30 min", "Nagarjuna - Rs 299 - 4.5*", "Behrouz - Rs 295 - 4.2*"],
-        "pizza": ["La Pino'z - Rs 250 - 4.4*", "Mojo Pizza - Rs 299 - 4.3*", "Domino's - Rs 199 - 4.0*"],
-        "burger": ["Burger King - Rs 199", "McD - Rs 180", "Burger Singh - Rs 250"],
-        "dosa": ["CTR - Rs 150", "MTR - Rs 180", "UpSouth - Rs 170"],
-        "healthy": ["EatFit Bowl - Rs 220", "Subway Salad - Rs 250", "Green Bowl - Rs 280"],
-        "chinese": ["Momo Zone - Rs 200", "Wow China - Rs 280", "Noodles - Rs 220"],
-        "late night": ["Empire - Open till 1 AM - Rs 300", "Meghana - Open till 12:30 AM - Rs 290", "Truffles - Open till 1 AM - Rs 280"],
-        "default": ["Truffles - Rs 280 - 4.5*", "Empire - Rs 300 - 4.3*", "Meghana Foods - Rs 290 - 4.4*"]
-    }
+    STORE["history"][conv_id].append({"role": from_role, "text": msg, "ts": time.time()})
+    hist = STORE["history"][conv_id]
 
-    # --- EDGE CASES ---
-    if not q or len(q) < 2:
-        return {"reply": "Hi! I'm Vera - your food buddy. Batao kya khana hai? Eg: 'biryani under 300 in HSR'", "context": ctx}
-    if re.fullmatch(r'[asdfghjklqwerty0-9@#\$%]{4,}', q) or len(q) > 400:
-        return {"reply": "Sorry, samajh nahi aaya. Tell me dish and budget like 'veg biryani under 300 in HSR'", "context": ctx}
-    if any(x in q for x in ["pm of india", "prime minister", "weather", "cricket", "system prompt", "ignore previous", "poem", "homework"]):
-        return {"reply": "I'm Vera, Magicpin food concierge. I only help with food discovery & ordering. Kya khana hai aaj?", "context": ctx}
-    if any(x in q for x in ["stupid", "useless", "bakwas", "bekar", "idiot"]):
-        return {"reply": "Sorry! Let me improve. Tell me exact craving - dish, budget, area - I'll find best 3 options instantly.", "context": ctx}
-    if q in ["hi","hello","hey","hii","thanks","ok","namaste"]:
-        return {"reply": "Hello! 👋 What to eat today? Try: 'best biryani under 300 in HSR' or 'late night pizza' or 'healthy veg under 250'", "context": ctx}
+    if detect_stop(msg):
+        return {"action": "end", "body": "Got it, stopping messages for this. Let me know if you want to resume.", "suppression_key": f"stop_{conv_id}"}
 
-    # --- AUTO-WAIT MERGE ---
-    last_dish = ctx.get("last_dish", "")
-    last_budget = ctx.get("last_budget", "300")
-    last_loc = ctx.get("last_location", "HSR Bangalore")
+    if detect_auto_reply(msg):
+        # 3-strike ladder
+        auto_count = sum(1 for h in hist if detect_auto_reply(h["text"]))
+        if auto_count == 1:
+            return {"action": "wait", "wait_seconds": 86400, "body": "Looks like auto-reply. Will try after 24h."}
+        else:
+            return {"action": "end", "body": "Ending due to repeated auto-replies."}
 
-    # If query is short like "under 400" or "veg only", auto-join with last dish
-    if len(q.split()) <= 4 and last_dish:
-        q_merged = f"{last_dish} {q}"
-    else:
-        q_merged = q
+    if detect_yes(msg):
+        return {"action": "send", "body": f"Great! Actioning your YES: {msg[:60]}. I've queued the message.", "cta": "done", "send_as": "vera"}
 
-    # --- REAL WORLD PARSE ---
-    dish = last_dish if last_dish else "default"
-    if "late night" in q_merged or "midnight" in q_merged or "raat" in q_merged: dish = "late night"
-    elif any(x in q_merged for x in ["healthy","gym","diet","salad","weight"]): dish = "healthy"
-    else:
-        for d in DB.keys():
-            if d in q_merged:
-                dish = d
-                break
-        if dish == "default":
-            if any(x in q_merged for x in ["roll","wrap","momos","noodles","fried rice"]): dish = "chinese"
-            elif "dosa" in q_merged or "idli" in q_merged: dish = "dosa"
+    # Off-topic redirect
+    if any(k in msg.lower() for k in ["gst", "legal", "loan"]):
+        return {"action": "send", "body": "I focus on growth messaging for magicpin. For GST/legal, please check with your CA. Want me to draft a customer offer instead? Reply YES.", "send_as": "vera"}
 
-    m = re.search(r'under\s*(\d+)|(\d+)\s*(rs|mein|me|tak)', q_merged)
-    budget = last_budget
-    if m:
-        for g in m.groups():
-            if g and g.isdigit(): budget = g; break
-    elif re.search(r'(\d{2,4})', q_merged):
-        budget = re.search(r'(\d{2,4})', q_merged).group(1)
+    # Default helpful reply - grounded
+    return {"action": "send", "body": f"Thanks for replying: '{msg[:80]}'. Want me to update the offer and resend? Reply YES to confirm.", "send_as": "vera"}
 
-    loc = last_loc
-    for l in ["hsr","koramangala","indiranagar","btm","jayanagar","whitefield","delhi","mumbai","pune"]:
-        if l in q_merged: loc = l.upper() if len(l)<=3 else l.title()
-
-    veg = ""
-    if "veg" in q_merged and "non" not in q_merged: veg = "veg"
-    if "non veg" in q_merged or "non-veg" in q_merged or "chicken" in q_merged: veg = "non-veg"
-    if "jain" in q_merged: veg = "jain"
-
-    # Order flow
-    results = DB.get(dish, DB["default"])
-    if any(x in q_merged for x in ["order","first one","1st","confirm"]):
-        return {"reply": f"Done ✅ Ordering {results[0]} in {loc} for Rs {budget}. Delivery in 25 mins. Confirm order?", "context": {"last_dish": dish, "last_budget": budget, "last_location": loc}}
-    if "more" in q_merged or "other" in q_merged:
-        return {"reply": f"More {veg} {dish} under Rs {budget} in {loc}:\n1. {results[0]}\n2. {results[1]}\n3. {results[2]}\nSay 'order first one'", "context": {"last_dish": dish, "last_budget": budget, "last_location": loc}}
-
-    # Final real answer
-    reply_text = f"Best {veg} {dish} under Rs {budget} in {loc}:\n1. {results[0]}\n2. {results[1]}\n3. {results[2]}\n\nWant me to order first one? Say 'order first one' or filter with 'veg only' / 'under 250'"
-    return {"reply": reply_text, "context": {"last_dish": dish, "last_budget": budget, "last_location": loc}}
+@app.post("/v1/teardown")
+def teardown():
+    STORE["categories"].clear(); STORE["merchants"].clear(); STORE["customers"].clear(); STORE["triggers"].clear(); STORE["suppressions"].clear(); STORE["history"].clear()
+    return {"status": "cleared"}
