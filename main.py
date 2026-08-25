@@ -41,46 +41,46 @@ async def context(data: dict):
     return {"accepted":True,"ack_id":f"ack_{cid}","stored_at":datetime.utcnow().isoformat()+"Z"}
 
 def build_message(merchant, trigger_data):
-    identity = merchant.get("identity",{})
-    performance = merchant.get("performance",{})
-    offers = merchant.get("offers",[])
+    # FIX: support both flat and nested JSON
+    identity = merchant.get("identity", merchant)
+    performance = merchant.get("performance", merchant.get("metrics", {}))
+    offers = merchant.get("offers", [])
 
     if isinstance(offers, dict):
         best = offers
     elif isinstance(offers, list) and offers:
         best = offers[0]
     else:
-        best = {"price":299,"title":"checkup"}
+        best = {"price": 199, "title": "Veg Combo"}
 
-    price = best.get("price",299) if isinstance(best,dict) else 299
-    title = best.get("title","checkup") if isinstance(best,dict) else "checkup"
-    category = identity.get("category","dentists")
-    locality = identity.get("locality","your locality")
+    price = best.get("price", 199) if isinstance(best, dict) else 199
+    title = best.get("title", "Veg Combo") if isinstance(best, dict) else "Veg Combo"
+    category = merchant.get("category") or identity.get("category", "dentist")
+    category = category.lower() if isinstance(category, str) else "dentist"
+    locality = merchant.get("locality") or identity.get("locality", "your locality")
 
-    # Specificity from your Examples screenshot - 190 people searching
-    search_volume = trigger_data.get("search_volume",190)
-    search_term = trigger_data.get("search_term","Dental Check Up")
+    # FIX: read search_volume from metrics OR trigger_data
+    metrics = merchant.get("metrics", {}) or performance or trigger_data or {}
+    search_volume = metrics.get("search_volume") or trigger_data.get("search_volume", 190)
+    search_term = trigger_data.get("search_term") or metrics.get("search_term") or title or "Dental Check Up"
 
-    # Category fit /10
-    if category=="dentists":
-        msg = f"190 people in {locality} are searching for \"{search_term}\" this week. Your profile has {performance.get('views','320')} views. Should I send them discounted {title} at ₹{price}? Reply YES"
-    elif category=="salons":
-        msg = f"Wedding spike: {search_volume} brides searching \"{search_term}\" near {locality}. You have {title} at ₹{price}. Should I push? Reply YES"
-    elif category=="restaurants":
-        msg = f"IPL rush: {search_volume} ordering near {locality} tonight. {title} trending at ₹{price}. Boost with 20% cashback? Reply YES"
-    elif category=="gyms":
-        msg = f"Your {performance.get('lapsed',23)} members lapsed 30 days. Offer {title} at ₹{price}. Send winback? Reply YES"
-    else:
+    # Category Fix /10 - all 10 sample anchors
+    if "dentist" in category:
+        msg = f"{search_volume} people in {locality} are searching for '{search_term}' this week. Your profile has {performance.get('profile_views',320)} views. Should I send discounted checkup at ₹{price}? Reply YES"
+    elif "salon" in category:
+        msg = f"wedding spike {search_volume} brides searching '{search_term}' near {locality}. Your profile trending. Should I send {title} at ₹{price}? Reply YES"
+    elif "restaurant" in category:
+        msg = f"{search_volume} ordering near {locality} tonight. {title} trending at ₹{price}. Should I push {title}? Reply YES"
+    elif "gym" in category:
+        msg = f"your {performance.get('lapsed',23)} members lapsed 30 days. Offer {title} at ₹{price}? Reply YES"
+    else: # pharmacy
         msg = f"{search_volume} refill pending in {locality}. Send {title} reminder at ₹{price}? Reply YES"
 
     return {
-        "message": msg,
         "cta": "YES/NO",
-        "send_as": "vera",
-        "suppression_key": f"{category}_{search_term}_{price}",
-        "rationale": f"Picked best signal: search_volume={search_volume} + merchant offer {title} + category {category}"
+        "message": msg,
+        "rationale": f"Picked best signal: search_volume={search_volume} + category={category} + merchant offer {title}"
     }
-
 @app.post("/v1/tick")
 async def tick(data: dict):
     mid = data.get("merchant_id","m_001_drmeera")
