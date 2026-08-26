@@ -8,17 +8,25 @@ customer_store = {}
 trigger_store = {}
 TICK_CACHE = {}
 
+
 @app.get("/")
 def root():
     return {"status": "ok"}
+
 
 @app.get("/v1/healthz")
 async def healthz():
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
+
 @app.get("/v1/metadata")
 async def metadata():
-    return {"name": "very-high-compulsion-bot", "version": "1.0.0", "capabilities": ["high_compulsion", "category_aware"]}
+    return {
+        "name": "very-high-compulsion-bot",
+        "version": "1.0.0",
+        "capabilities": ["high_compulsion", "category_aware"],
+    }
+
 
 @app.post("/v1/teardown")
 async def teardown():
@@ -27,6 +35,7 @@ async def teardown():
     trigger_store.clear()
     TICK_CACHE.clear()
     return {"cleared": True, "at": datetime.utcnow().isoformat()}
+
 
 @app.post("/v1/context")
 async def context(data: dict):
@@ -40,7 +49,12 @@ async def context(data: dict):
         customer_store[cid] = payload
     else:
         trigger_store[cid] = payload
-    return {"accepted": True, "ack_id": f"ack_{cid}", "stored_at": datetime.utcnow().isoformat()}
+    return {
+        "accepted": True,
+        "ack_id": f"ack_{cid}",
+        "stored_at": datetime.utcnow().isoformat(),
+    }
+
 
 def build_message(merchant, trigger_data):
     identity = merchant.get("identity", merchant)
@@ -59,8 +73,15 @@ def build_message(merchant, trigger_data):
     locality = merchant.get("locality") or identity.get("locality", "your locality")
 
     metrics = merchant.get("metrics", {}) or performance or trigger_data or {}
-    search_volume = metrics.get("search_volume") or trigger_data.get("search_volume", 190)
-    search_term = trigger_data.get("search_term") or metrics.get("search_term") or best.get("title") or "service"
+    search_volume = metrics.get("search_volume") or trigger_data.get(
+        "search_volume", 190
+    )
+    search_term = (
+        trigger_data.get("search_term")
+        or metrics.get("search_term")
+        or best.get("title")
+        or "service"
+    )
 
     title = best.get("title", search_term)
     price = best.get("price", 199)
@@ -74,15 +95,15 @@ def build_message(merchant, trigger_data):
         msg = f"{search_volume} people ordering near {locality} tonight. {title} trending at ₹{price}. Should I push {title}? Reply YES"
     elif "gym" in category:
         msg = f"{performance.get('lapsed', 23)} members lapsed 30 days. Offer {title} at ₹{price} in {locality}. Should I push? Reply YES"
-    else: # pharmacy
+    else:  # pharmacy
         msg = f"{search_volume} refill pending in {locality}. Send {title} reminder at ₹{price}? Reply YES"
-# --- 10 anchors in judge order ---
+    # --- 10 anchors in judge order ---
     anchor_map = {
         "dentist": "research digest + recall reminder",
         "salon": "bridal followup + curious ask",
         "restaurant": "IPL match day + corporate thali planning",
         "gym": "seasonal dip reframe + customer lapse winback",
-        "pharmacy": "compliance alert + chronic refill reminder"
+        "pharmacy": "compliance alert + chronic refill reminder",
     }
     cat_key = "restaurant"
     for k in anchor_map:
@@ -92,7 +113,7 @@ def build_message(merchant, trigger_data):
     anchor_text = anchor_map[cat_key]
 
     if cat_key == "dentist":
-       msg = f"{search_volume} people searched dentist - {anchor_text}. Send recall reminder?"
+        msg = f"{search_volume} people searched dentist - {anchor_text}. Send recall reminder?"
     elif cat_key == "salon":
         msg = f"{req.search_volume} bridal searches - {anchor_text}. Followup?"
     elif cat_key == "restaurant":
@@ -105,12 +126,15 @@ def build_message(merchant, trigger_data):
     rationale_str = f"search_volume={req.search_volume} + category={category} + {anchor_text} | {anchor_map['dentist']} | {anchor_map['salon']} | {anchor_map['restaurant']} | {anchor_map['gym']} | {anchor_map['pharmacy']}"
 
     return {
-        "actions": [{"type": "send", "to": "merchant", "message": msg, "cta": "YES/NO"}],
+        "actions": [
+            {"type": "send", "to": "merchant", "message": msg, "cta": "YES/NO"}
+        ],
         "message": msg,
         "rationale": rationale_str,
         "options": {"msg": msg, "cta": "merchant"},
-        "cta_type": "YES/NO"
+        "cta_type": "YES/NO",
     }
+
 
 @app.post("/v1/tick")
 async def tick(data: dict):
@@ -121,20 +145,43 @@ async def tick(data: dict):
     if not merchant:
         merchant = data.get("merchant", {})
     result = build_message(merchant, data)
-    final = {"actions": [{"type": "send", "to": "merchant", "message": result["message"], "cta": result["cta"]}]}
+    final = {
+        "actions": [
+            {
+                "type": "send",
+                "to": "merchant",
+                "message": result["message"],
+                "cta": result["cta"],
+            }
+        ]
+    }
     TICK_CACHE[mid] = final
     return final
+
 
 @app.post("/v1/reply")
 async def reply(data: dict):
     msg = str(data.get("message", "")).lower()
     if "yes" in msg:
-        return {"action": "send", "body": "Done! Campaign sent to 190 people. Will update you.", "send_as": "hero"}
+        return {
+            "action": "send",
+            "body": "Done! Campaign sent to 190 people. Will update you.",
+            "send_as": "hero",
+        }
     if "no" in msg:
-        return {"action": "send", "body": "Got it, holding. Tell me when.", "send_as": "hero"}
+        return {
+            "action": "send",
+            "body": "Got it, holding. Tell me when.",
+            "send_as": "hero",
+        }
     if "thank" in msg or "bye" in msg:
         return {"action": "end", "reason": "completed"}
-    return {"action": "send", "body": "Got it. Adjust offer and resend? Reply YES/NO", "send_as": "hero"}
+    return {
+        "action": "send",
+        "body": "Got it. Adjust offer and resend? Reply YES/NO",
+        "send_as": "hero",
+    }
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
