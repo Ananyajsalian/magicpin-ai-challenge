@@ -89,24 +89,28 @@ def build_body(merchant, trigger_id, trigger_payload):
     lapsed = perf.get("lapsed", 23)
 
     # 10 sample case anchors - Screenshot 9
+    
     if "dentist" in cat:
-        body = f"Dr. {identity.get('name','Meera')}, your CTR is {ctr}% vs {peer_ctr}% {locality} peer median. You already have {title} @ ₹{price}. Want me to draft a 160-char patient message around it?"
-        cta = "open_ended"; sup = f"research:dentists:{datetime.utcnow().strftime('%Y-W%W')}"
+        body = f"{name}, {search_vol} people searching for '{search_term}' near {locality}. You already have {title} - {price}. Want me to draft 100-char patient message? Reply YES"
+        sup = f"dentist:{locality}:{lapsed}"
     elif "restaurant" in cat:
-        body = f"{search_vol} people ordering {search_term} near {locality} tonight. {title} trending at ₹{price}. IPL match day - push corporate thali? Reply YES"
-        cta = "yes_no"; sup = f"ipl:restaurants:{locality}"
+        body = f"{search_vol} people ordering {search_term} near {locality} tonight. {title} trending at {price}. 30-min push? Reply YES"
+        sup = f"restaurant:{locality}"
     elif "salon" in cat:
-        body = f"{search_vol} brides searching for '{search_term}' near {locality}. Bridal followup + curious ask: Push {title} at ₹{price}? Reply YES"
-        cta = "yes_no"; sup = f"bridal:salons:{locality}"
+        body = f"{search_vol} brides searching for '{search_term}' near {locality}. Bridal followup + curious spike. Push {title} at {price}? Reply YES"
+        sup = f"salon:{locality}"
     elif "gym" in cat:
-        body = f"{lapsed} members lapsed 30 days. Seasonal dip reframe + customer lapse winback: Offer {title} at ₹{price} in {locality}. Should I send? Reply YES"
-        cta = "yes_no"; sup = f"seasonal:gyms:{locality}"
-    elif "pharmacies" in cat or "pharma" in cat:
-        body = f"Compliance alert + chronic refill reminder: {search_vol} refills pending in {locality} for {search_term}. Send {title} @ ₹{price}? Reply YES"
-        cta = "yes_no"; sup = f"compliance:pharmacies:{locality}"
+        body = f"{lapsed} members lapsed 30 days. Seasonal dip reframe + customer lapse winback: Offer {title} at {price} in {locality}. Should I send? Reply YES"
+        sup = f"gym:{locality}:{lapsed}"
+    elif "pharma" in cat or "pharmacy" in cat:
+        body = f"Compliance pharma refill reminder: {search_vol} refills pending in {locality} for {search_term}. Offer {title} @ {price}. Should I send? Reply YES"
+        sup = f"pharma:{locality}"
     else:
-        body = f"{search_vol} people in {locality} searching for '{search_term}'. Offer {title} @ ₹{price}. Should I send? Reply YES"
-        cta = "yes_no"; sup = f"generic:{cat}:{locality}"
+        body = f"{search_vol} people in {locality} searching for '{search_term}'. Offer {title} @ {price}. Should I send? Reply YES"
+        sup = f"generic:{cat}:{locality}"
+    
+    
+    
 
     return body, cta, sup
 
