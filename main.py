@@ -70,7 +70,7 @@ async def context(data: dict):
 
 def build_body(merchant, trigger_id, trigger_payload):
     identity = merchant.get("identity", {})
-    # FIX YOUR BUG: get category from merchant or trigger_id
+    m_name = identity.get("name", "Merchant")
     cat = (merchant.get("category") or identity.get("category") or "").lower()
     if "dentist" in trigger_id: cat = "dentist"
     if "restaurant" in trigger_id or "salon" in trigger_id or "gym" in trigger_id or "pharma" in trigger_id:
@@ -91,7 +91,7 @@ def build_body(merchant, trigger_id, trigger_payload):
     # 10 sample case anchors - Screenshot 9
     
     if "dentist" in cat:
-        body = f"{name}, {search_vol} people searching for '{search_term}' near {locality}. You already have {title} - {price}. Want me to draft 100-char patient message? Reply YES"
+        body = f"{m_name}, {search_vol} people searching for '{search_term}' near {locality}. You already have {title} - {price}. Want me to draft 100-char patient message? Reply YES"
         sup = f"dentist:{locality}:{lapsed}"
     elif "restaurant" in cat:
         body = f"{search_vol} people ordering {search_term} near {locality} tonight. {title} trending at {price}. 30-min push? Reply YES"
@@ -111,7 +111,7 @@ def build_body(merchant, trigger_id, trigger_payload):
     
     
     
-
+    cta = "Reply YES"
     return body, cta, sup
 
 @app.post("/v1/tick")
