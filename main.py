@@ -62,7 +62,7 @@ async def teardown():
 @app.post("/v1/context")
 async def context(data: dict):
     scope = data.get("scope", "merchant")
-    cid = data.get("context_id") or data.get("id") or data.get("contextId") or f"auto_{len(merchant_store)+len(trigger_store)}"
+    cid = data.get("context_id")
     version = data.get("version", 0)
     payload = data.get("payload", {})
 
