@@ -31,6 +31,11 @@ async def healthz():
         }
     }
 
+@app.get("/healthz")
+async def healthz_root():
+    return await healthz()
+
+
 # --- 2. GET /v1/metadata - Screenshot 5 ---
 @app.get("/v1/metadata")
 async def metadata():
@@ -41,6 +46,10 @@ async def metadata():
         "approach": "category anchors: dentist=research+recall, salon=bridal+curious, restaurant=IPL+thali, gym=seasonal+winback, pharmacy=compliance+refill",
         "version": "1.2.0"
     }
+
+@app.get("/metadata")
+async def metadata_root():
+    return await metadata()
 
 @app.post("/v1/teardown")
 async def teardown():
