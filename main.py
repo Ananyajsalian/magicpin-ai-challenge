@@ -110,39 +110,48 @@ def build_body(merchant, trigger_id, trigger_payload):
 
     return body, cta, sup
 
-# --- 4. POST /v1/tick - Screenshot 2 ---
 @app.post("/v1/tick")
-async def tick(data: dict):
-    available = data.get("available_triggers", ["trg_research_digest_dentists"])
+def tick(payload: dict):
+    now = payload.get("now", "")
+    available = payload.get("available_triggers", [])
     actions = []
+    
+    for trig_id in available:
+        trig = trigger_store.get(trig_id)
+        if not trig:
+            continue
+            
+        # get trigger data
+        trig_payload = trig.get("payload", {})
+        search_term = trig_payload.get("search_term", "your category")
+        search_volume = trig_payload.get("search_volume", 0)
+        locality = trig_payload.get("locality", "")
+        
+        # find merchant for this - using m_dentist for your test
+        # in final logic you loop merchants
+        for m_id, merchant in merchant_store.items():
+            m_name = merchant.get("payload", {}).get("identity", {}).get("name", "Merchant")
+            
+            # BUILD COPY-PASTE BODY - MUST contain search_term + volume
+            body = f"Hi {m_name}, '{search_term}' searches at {search_volume} in {locality}. Customers looking now - want to boost?"
+            cta = "Boost visibility"
+            sup_key = f"{m_id}:{trig_id}"
+            
+            # ANTI-SPAM CHECK - THIS IS MISSING IN YOUR CODE
+            if sup_key in sent_keys:
+                continue
+            sent_keys.add(sup_key)
+            
+            actions.append({
+                "merchant_id": m_id,
+                "trigger_id": trig_id,
+                "body": body,
+                "cta": cta,
+                "suppression_key": sup_key
+            })
+    
+    return {"now": now, "actions": actions}
 
-    for m_id in list(merchant_store.keys())[:20]:
-        merchant = merchant_store[m_id]
-        trig_id = available[0] if available else list(trigger_store.keys())[0] if trigger_store else "trg_research_digest_dentists"
-        trig_payload = trigger_store.get(trig_id, {"search_term": "Dental Check Up", "search_volume": 190, "locality": "South Delhi"})
-
-        body, cta, sup_key = build_body(merchant, trig_id, trig_payload)
-
-        # --- ANTI-SPAM FIX ---
-        if sup_key in sent_keys:
-           continue
-        sent_keys.add(sup_key)
-
-
-        actions.append({
-            "merchant_id": m_id,
-            "trigger_id": trig_id,
-            "body": body,
-            "cta": cta,
-            "suppression_key": sup_key
-        })
-        if len(actions) >= 20: break
-
-    # If no context yet, return sample to pass warmup
-    if not actions:
-        actions = [{"merchant_id": "m_001_drmeera", "trigger_id": "trg_research_digest_dentists", "body": "Dr. Meera, your CTR is 2.1% vs 3.0% South Delhi peer median. You already have Dental Cleaning @ ₹299. Want me to draft a 160-char patient message around it?", "cta": "open_ended", "suppression_key": "research:dentists:2026-W17"}]
-
-    return {"actions": actions}
 
 # --- 5. POST /v1/reply - Screenshot 3 ---
 @app.post("/v1/reply")
