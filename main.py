@@ -1,3 +1,4 @@
+from dotenv import set_key
 from fastapi import FastAPI
 from datetime import datetime
 import time
@@ -10,6 +11,7 @@ merchant_store = {}
 customer_store = {}
 trigger_store = {}
 category_store = {}
+sent_keys = set()
 
 @app.get("/")
 def root():
@@ -44,6 +46,7 @@ async def metadata():
 async def teardown():
     merchant_store.clear(); customer_store.clear()
     trigger_store.clear(); category_store.clear()
+    sent_keys.clear()
     return {"cleared": True}
 
 # --- 3. POST /v1/context - Screenshot 1 ---
@@ -119,6 +122,12 @@ async def tick(data: dict):
         trig_payload = trigger_store.get(trig_id, {"search_term": "Dental Check Up", "search_volume": 190, "locality": "South Delhi"})
 
         body, cta, sup_key = build_body(merchant, trig_id, trig_payload)
+
+        # --- ANTI-SPAM FIX ---
+        if sup_key in sent_keys:
+           continue
+        sent_keys.add(sup_key)
+
 
         actions.append({
             "merchant_id": m_id,
